@@ -133,6 +133,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean appLibraryEnabled;
     /** The same opt-in menu is available from either hold-OK or the remote's Menu key. */
     private boolean tileMenuEnabled;
+    /** map_remote_button: hold-OK menu can bind a tile's app to a remote app button. */
+    private boolean mapRemoteButton;
     private String inputAction;
     private List<String> inputSources;
     private String inputUriScheme;
@@ -498,6 +500,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         liveTvInputId = cfg.liveTvInputId;
         appLibraryEnabled = cfg.appLibrary;
         tileMenuEnabled = cfg.tileMenu;
+        mapRemoteButton = cfg.mapRemoteButton;
         inputAction = cfg.inputAction;
         inputSources = cfg.inputSources;
         inputUriScheme = cfg.inputUriScheme;
@@ -3856,6 +3859,23 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             pickUp(at);
             Toast.makeText(this, R.string.reorder_hint, Toast.LENGTH_LONG).show();
         });
+        if (mapRemoteButton) {
+            addSettingsMenuRow(rows, popup, R.string.tile_map_remote, () -> {
+                AppKeyMaps.beginLearn(pkg);
+                Toast.makeText(this, R.string.remote_map_press, Toast.LENGTH_LONG).show();
+            });
+            if (AppKeyMaps.has(this, pkg)) {
+                addSettingsMenuRow(rows, popup, R.string.tile_clear_remote, () -> {
+                    if (!AppKeyMaps.clearPackage(this, pkg)) {
+                        Toast.makeText(this, R.string.library_save_failed, Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    HomeKeyService.reloadAppKeyMaps();
+                    InputKeyService.reloadAppKeyMaps();
+                    Toast.makeText(this, R.string.remote_map_cleared, Toast.LENGTH_SHORT).show();
+                });
+            }
+        }
         if (appLibraryEnabled) addSettingsMenuRow(rows, popup, R.string.library_remove_shortcut, () -> {
             if (LibraryApps.save(this, pkg, false)) reloadApps(false);
             else Toast.makeText(this, R.string.library_save_failed, Toast.LENGTH_LONG).show();

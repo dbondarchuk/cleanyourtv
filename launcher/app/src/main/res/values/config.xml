@@ -407,6 +407,10 @@
          app_library) and App info. On by default since 3.3; false keeps the old behaviour: holding OK opens the app's
          App info page. A theme's config.json can set "tile_menu" either way. -->
     <bool name="tile_menu">true</bool>
+    <!-- Hold-OK menu gains "Map to remote button" / "Clear remote buttons": press a remote app key to bind
+         that tile's app to it (learned overlays on app_keys). Off by default; a theme can set
+         "map_remote_button": true. Needs a key helper (HOME_KEY_SERVICE or INPUT_KEY_SERVICE). -->
+    <bool name="map_remote_button">false</bool>
 
     <!-- Grid rows left visible under the dock on the home screen. 0 = dock sits at the very bottom. Tiles shrink if
          the dock, its title and this many rows would not otherwise fit the screen height. -->

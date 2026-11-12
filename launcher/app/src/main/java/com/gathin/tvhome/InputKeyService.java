@@ -37,10 +37,23 @@ public class InputKeyService extends AccessibilityService {
     /** The bound helper, for global actions Home's own key path asks for (RemoteKeys). */
     static InputKeyService running;
 
+    /** map_remote_button: reload app_keys after a learned remote mapping changes. */
+    static void reloadAppKeyMaps() {
+        InputKeyService service = running;
+        if (service != null) service.loadConfig();
+    }
+
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
         running = this;
+        loadConfig();
+        // gamepad_passthrough and volume_pauses_filter, off by default.
+        Config config = Config.load(this);
+        if (gamepads == null) gamepads = GamepadPassthrough.start(this, config);
+    }
+
+    private void loadConfig() {
         // From config.xml or a theme's config.json; theme.sh rebinds this service after a push.
         Config config = Config.load(this);
         // restore_key_services: note that this helper runs, so Home can put it back after a force stop.
@@ -50,13 +63,12 @@ public class InputKeyService extends AccessibilityService {
         consumeVolumeKeys = config.consumeVolumeKeys;
         appKeys = RemoteKeys.parseAppKeys(config.appKeys);
         appScancodes = RemoteKeys.parseAppScancodes(config.appKeys);
+        AppKeyMaps.apply(this, appKeys, appScancodes);
         RemoteKeys.applyKeyFilter(this, config.keyFilter);
         holdAppKeys = RemoteKeys.parseHoldAppKeys(config.appKeys);
         holdAppScancodes = RemoteKeys.parseHoldAppScancodes(config.appKeys);
         frontAppKeys = RemoteKeys.parseFrontAppKeys(config.appKeys);
         frontAppScancodes = RemoteKeys.parseFrontAppScancodes(config.appKeys);
-        // gamepad_passthrough and volume_pauses_filter, off by default.
-        if (gamepads == null) gamepads = GamepadPassthrough.start(this, config);
     }
 
     private boolean isInputKey(int keyCode) {
@@ -67,6 +79,7 @@ public class InputKeyService extends AccessibilityService {
 
     @Override
     protected boolean onKeyEvent(KeyEvent event) {
+        if (AppKeyMaps.consumeLearn(this, event)) return true;
         if (consumeVolumeKeys && VolumeKeys.handle(this, event)) return true;
         // A scancode entry is more specific than any keycode, so it goes first.
         if (RemoteKeys.handle(this, event, RemoteKeys.tap(appScancodes.get(event.getScanCode()),

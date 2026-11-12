@@ -135,6 +135,12 @@ public class HomeKeyService extends AccessibilityService {
         else service.disarmStandbyExit();
     }
 
+    /** map_remote_button: reload app_keys after a learned remote mapping changes. */
+    static void reloadAppKeyMaps() {
+        HomeKeyService service = running;
+        if (service != null) service.loadConfig();
+    }
+
     @Override
     public void onDestroy() {
         if (running == this) running = null;
@@ -196,6 +202,7 @@ public class HomeKeyService extends AccessibilityService {
         consumeVolumeKeys = config.consumeVolumeKeys;
         appKeys = RemoteKeys.parseAppKeys(config.appKeys);
         appScancodes = RemoteKeys.parseAppScancodes(config.appKeys);
+        AppKeyMaps.apply(this, appKeys, appScancodes);
         RemoteKeys.applyKeyFilter(this, config.keyFilter);
         homeLongPressHome = config.homeLongPressHome;
         frontAppKeys = RemoteKeys.parseFrontAppKeys(config.appKeys);
@@ -256,6 +263,8 @@ public class HomeKeyService extends AccessibilityService {
 
     @Override
     protected boolean onKeyEvent(KeyEvent event) {
+        // map_remote_button: capture the next app key before any mapping opens an app.
+        if (AppKeyMaps.consumeLearn(this, event)) return true;
         // power_on_home: the first key after power-on hands the TV to the user (power and wake keys don't count).
         if (powerOnUntil != 0 && event.getAction() == KeyEvent.ACTION_DOWN
                 && event.getKeyCode() != KeyEvent.KEYCODE_POWER && event.getKeyCode() != KeyEvent.KEYCODE_WAKEUP) {

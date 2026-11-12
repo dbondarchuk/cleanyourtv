@@ -104,6 +104,13 @@
     <string name="tile_add_to_dock">Add to dock</string>
     <string name="tile_replace_in_dock">Replace with another app</string>
     <string name="dock_edit_pick_place">Choose the dock place for this app and press OK. Back to cancel.</string>
+    <string name="tile_map_remote">Map to remote button</string>
+    <string name="tile_clear_remote">Clear remote buttons</string>
+    <string name="remote_map_press">Press a remote app button…</string>
+    <string name="remote_map_saved">Remote button mapped</string>
+    <string name="remote_map_cleared">Remote buttons cleared</string>
+    <string name="remote_map_cancelled">Mapping cancelled</string>
+    <string name="remote_map_not_a_button">That key can\'t be mapped</string>
     <string name="reorder">Reorder apps</string>
     <string name="tile_move">Move</string>
     <string name="reorder_hint">OK picks up an app, arrows move it, Back places it. Back again to finish.</string>
