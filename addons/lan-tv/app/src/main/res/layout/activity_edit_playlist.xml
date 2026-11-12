@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0A1218"
+    android:orientation="vertical"
+    android:padding="48dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/edit_title"
+        android:textColor="#F2F6FA"
+        android:textSize="34sp" />
+
+    <TextView
+        android:id="@+id/heading"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/edit_subtitle"
+        android:textColor="#9BB0C0"
+        android:textSize="18sp" />
+
+    <EditText
+        android:id="@+id/host"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="28dp"
+        android:background="#1A2834"
+        android:hint="@string/host_hint"
+        android:imeOptions="actionNext"
+        android:inputType="textUri"
+        android:padding="16dp"
+        android:textColor="#F2F6FA"
+        android:textColorHint="#6A7F90"
+        android:textSize="20sp" />
+
+    <EditText
+        android:id="@+id/xmltv"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="#1A2834"
+        android:hint="@string/xmltv_hint"
+        android:imeOptions="actionDone"
+        android:inputType="textUri"
+        android:padding="16dp"
+        android:textColor="#F2F6FA"
+        android:textColorHint="#6A7F90"
+        android:textSize="20sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/save"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="12dp"
+            android:layout_weight="1"
+            android:text="@string/save_source" />
+
+        <Button
+            android:id="@+id/remove"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="12dp"
+            android:layout_weight="1"
+            android:text="@string/remove_source" />
+
+        <Button
+            android:id="@+id/back"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/back" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="@string/edit_status_idle"
+        android:textColor="#C5D6E2"
+        android:textSize="18sp" />
+</LinearLayout>

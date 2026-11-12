@@ -1,0 +1,44 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'io.github.cleanyourtv.lantv'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'io.github.cleanyourtv.lantv'
+        minSdk 26
+        targetSdk 34
+        versionCode 18
+        versionName '0.5.1'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+}
+
+dependencies {
+    def media3 = '1.4.1'
+    implementation "androidx.media3:media3-exoplayer:$media3"
+    implementation "androidx.media3:media3-exoplayer-hls:$media3"
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20240303'
+    // Real XmlPullParser for JVM unit tests (the Android stub returns nulls).
+    testImplementation 'net.sf.kxml:kxml2:2.3.0'
+}

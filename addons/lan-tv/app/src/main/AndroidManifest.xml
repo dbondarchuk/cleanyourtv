@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-feature android:name="android.software.live_tv" android:required="true" />
+
+    <!-- HTTP to the HDHomeRun-compatible server (ErsatzTV) for lineup, streams and XMLTV. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- ExoPlayer WAKE_MODE_NETWORK while a Live TV session is tuned. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Re-sync channels after reboot so Live TV keeps the input. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Publish channels and programme rows into the system TV provider for Live TV. -->
+    <uses-permission android:name="com.android.providers.tv.permission.READ_EPG_DATA" />
+    <uses-permission android:name="com.android.providers.tv.permission.WRITE_EPG_DATA" />
+
+    <application
+        android:allowBackup="false"
+        android:banner="@drawable/banner"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="false"
+        android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen"
+        android:usesCleartextTraffic="true">
+
+        <activity
+            android:name=".SetupActivity"
+            android:exported="true"
+            android:screenOrientation="landscape">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="com.gathin.tvhome.category.DOCK_CARD" />
+            </intent-filter>
+            <meta-data
+                android:name="com.gathin.tvhome.card"
+                android:resource="@xml/module_card" />
+        </activity>
+
+        <activity
+            android:name=".AddPlaylistActivity"
+            android:exported="false"
+            android:screenOrientation="landscape">
+        </activity>
+
+        <activity
+            android:name=".EditPlaylistActivity"
+            android:exported="false"
+            android:screenOrientation="landscape">
+        </activity>
+
+        <service
+            android:name=".LanTvInputService"
+            android:exported="true"
+            android:permission="android.permission.BIND_TV_INPUT">
+            <intent-filter>
+                <action android:name="android.media.tv.TvInputService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.media.tv.input"
+                android:resource="@xml/tv_input_service" />
+        </service>
+
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- TIF-style periodic channel + XMLTV refresh (EpgSyncJob.setUpPeriodicSync). -->
+        <service
+            android:name=".EpgSyncJob"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+    </application>
+</manifest>

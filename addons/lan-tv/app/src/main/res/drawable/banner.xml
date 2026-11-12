@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Own art: a simple TV with a LAN link mark on dark teal. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="180dp"
+    android:viewportWidth="320"
+    android:viewportHeight="180">
+    <path
+        android:fillColor="#0A1218"
+        android:pathData="M0,0h320v180h-320z" />
+    <path
+        android:fillColor="#14303A"
+        android:pathData="M40,30h240v120h-240z" />
+    <path
+        android:fillColor="#2E8B9A"
+        android:pathData="M70,50h180v70h-180z" />
+    <path
+        android:fillColor="#0A1218"
+        android:pathData="M140,130h40v12h-40z" />
+    <path
+        android:fillColor="#F2F6FA"
+        android:pathData="M120,70h20v8h-20zM150,70h20v8h-20zM180,70h20v8h-20zM135,90h50v8h-50z" />
+</vector>
