@@ -49,6 +49,29 @@
         android:textColorHint="#6A7F90"
         android:textSize="20sp" />
 
+    <TextView
+        android:id="@+id/found_heading"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/found_heading"
+        android:textColor="#F2F6FA"
+        android:textSize="20sp"
+        android:visibility="gone" />
+
+    <ListView
+        android:id="@+id/found_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        android:layout_weight="1"
+        android:background="#12202C"
+        android:choiceMode="singleChoice"
+        android:divider="#1A2834"
+        android:dividerHeight="1dp"
+        android:padding="4dp"
+        android:visibility="gone" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

@@ -172,7 +172,16 @@ public class SetupActivity extends Activity {
                     setBusy(false);
                     setResult(RESULT_OK);
                     reloadSources();
-                    status.setText(getString(R.string.status_done, r.channels, r.programmes));
+                    String msg = getString(R.string.status_done, r.channels, r.programmes);
+                    if (r.hostErrors != null && !r.hostErrors.isEmpty()) {
+                        StringBuilder sb = new StringBuilder(msg);
+                        sb.append('\n').append(getString(R.string.status_host_failures));
+                        for (String err : r.hostErrors) {
+                            sb.append('\n').append(err);
+                        }
+                        msg = sb.toString();
+                    }
+                    status.setText(msg);
                 });
             } catch (Exception e) {
                 main.post(() -> {

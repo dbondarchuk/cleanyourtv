@@ -80,6 +80,39 @@ public class HdhrTest {
     }
 
     @Test
+    public void lineupKeepsDecimalGuideNumbers() throws Exception {
+        JSONArray arr = new JSONArray("["
+                + "{\"GuideNumber\":\"5.1\",\"GuideName\":\"WRAL HD\","
+                + "\"URL\":\"http://192.168.0.139:5004/auto/v5.1\"},"
+                + "{\"GuideNumber\":\"117.1\",\"GuideName\":\"DRM\","
+                + "\"URL\":\"http://192.168.0.139:5004/auto/v117.1\",\"DRM\":1}"
+                + "]");
+        List<Hdhr.Channel> ch = Hdhr.parseLineup(arr);
+        assertEquals(1, ch.size());
+        assertEquals("5.1", ch.get(0).number);
+        assertEquals("http://192.168.0.139:5004/auto/v5.1", ch.get(0).url);
+    }
+
+    @Test
+    public void joinDeviceAuthsConcatenatesInOrder() {
+        List<String> auths = new ArrayList<>();
+        auths.add("AAA");
+        auths.add(" ");
+        auths.add("BBB");
+        assertEquals("AAABBB", Hdhr.joinDeviceAuths(auths));
+    }
+
+    @Test
+    public void siliconDustXmltvUrlEmbedsJoinedAuth() throws Exception {
+        List<String> auths = new ArrayList<>();
+        auths.add("auth1");
+        auths.add("auth2");
+        String url = Hdhr.siliconDustXmltvUrl(auths);
+        assertTrue(url.startsWith(Hdhr.SILICONDUST_XMLTV + "?DeviceAuth="));
+        assertTrue(url.contains("auth1auth2"));
+    }
+
+    @Test
     public void applyM3uUrlsSwapsMatchingGuideNumbers() {
         List<Hdhr.Channel> ch = new ArrayList<>();
         ch.add(new Hdhr.Channel("1", "QTv", "http://x/iptv/hdhr/channel/1.ts"));

@@ -12,6 +12,7 @@ import android.util.Log;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -34,14 +35,17 @@ final class ChannelSync {
         final String inputId;
         final String friendly;
         final Map<String, Long> channelIdsByKey;
+        /** Hosts that failed this pass (sync may still succeed via other playlists). */
+        final List<String> hostErrors;
 
         Result(int channels, int programmes, String inputId, String friendly,
-               Map<String, Long> channelIdsByKey) {
+               Map<String, Long> channelIdsByKey, List<String> hostErrors) {
             this.channels = channels;
             this.programmes = programmes;
             this.inputId = inputId;
             this.friendly = friendly;
             this.channelIdsByKey = channelIdsByKey;
+            this.hostErrors = hostErrors == null ? Collections.emptyList() : hostErrors;
         }
     }
 
@@ -82,8 +86,12 @@ final class ChannelSync {
         List<Row> rows = new ArrayList<>();
         Map<String, String> xmltvByHost = new HashMap<>();
         Map<String, List<Hdhr.Channel>> lineupByHost = new HashMap<>();
+        // Hosts that need SiliconDust cloud guide (no user/local XMLTV); DeviceAuth never stored.
+        List<String> siliconHosts = new ArrayList<>();
+        List<String> siliconAuths = new ArrayList<>();
         List<Prefs.Source> saved = new ArrayList<>();
         Set<String> seenHosts = new HashSet<>();
+        List<String> hostErrors = new ArrayList<>();
         IOException last = null;
 
         for (Prefs.Source src : sources) {
@@ -101,16 +109,28 @@ final class ChannelSync {
                 try {
                     xmltv = Hdhr.resolveXmltv(device.host, src.xmltv);
                 } catch (IOException e) {
-                    Log.w(TAG, "No XMLTV for " + device.host + ": " + e.getMessage());
+                    Log.w(TAG, "No local XMLTV for " + device.host + ": " + e.getMessage());
                 }
-                if (xmltv != null) xmltvByHost.put(device.host, xmltv);
-                saved.add(new Prefs.Source(device.host, xmltv == null ? src.xmltv : xmltv, friendly));
+                if (xmltv != null) {
+                    xmltvByHost.put(device.host, xmltv);
+                    // Persist auto-discovered local/ETV guide URL; never a DeviceAuth cloud URL.
+                    saved.add(new Prefs.Source(device.host, xmltv, friendly));
+                } else if (!device.deviceAuth.isEmpty()) {
+                    siliconHosts.add(device.host);
+                    siliconAuths.add(device.deviceAuth);
+                    saved.add(new Prefs.Source(device.host, src.xmltv, friendly));
+                } else {
+                    saved.add(new Prefs.Source(device.host, src.xmltv, friendly));
+                }
                 for (Hdhr.Channel ch : lineup) {
                     rows.add(new Row(device.host, ch, providerId(device.host, ch), key(ch)));
                 }
             } catch (IOException e) {
                 last = e;
-                Log.w(TAG, "Host failed " + src.host + ": " + e.getMessage());
+                String msg = src.host + ": " + (e.getMessage() == null ? e.getClass().getSimpleName()
+                        : e.getMessage());
+                hostErrors.add(msg);
+                Log.w(TAG, "Host failed " + msg);
                 saved.add(src); // keep the playlist even if this pass failed
             }
         }
@@ -209,11 +229,38 @@ final class ChannelSync {
             }
         }
 
+        // Real HDHomeRun: no local guide — fetch SiliconDust cloud XMLTV once per sync using
+        // concatenated DeviceAuth (https://github.com/dbondarchuk/hdhomerun-xmltv).
+        if (!siliconAuths.isEmpty()) {
+            try {
+                byte[] guide = Hdhr.fetchSiliconDustXmltv(siliconAuths);
+                for (String host : siliconHosts) {
+                    List<Hdhr.Channel> lineup = lineupByHost.get(host);
+                    if (lineup == null) continue;
+                    Map<String, Long> hostIds = new HashMap<>();
+                    for (Hdhr.Channel ch : lineup) {
+                        Long id = ids.get(host + "|" + key(ch));
+                        if (id != null) hostIds.put(key(ch), id);
+                    }
+                    try {
+                        programmes += XmltvSync.applyXml(ctx, guide, hostIds, lineup);
+                    } catch (IOException ex) {
+                        Log.w(TAG, "SiliconDust XMLTV apply failed for " + host + ": "
+                                + ex.getMessage());
+                    }
+                }
+            } catch (IOException ex) {
+                hostErrors.add("SiliconDust guide: " + ex.getMessage());
+                Log.w(TAG, "SiliconDust XMLTV fetch failed: " + ex.getMessage());
+            }
+        }
+
         Prefs.saveSources(ctx, saved);
         String friendly = Prefs.friendly(ctx);
         Log.i(TAG, "Synced " + n + " channels, " + programmes + " programmes from "
-                + lineupByHost.size() + " host(s)");
-        return new Result(n, programmes, inputId, friendly, ids);
+                + lineupByHost.size() + " host(s)"
+                + (hostErrors.isEmpty() ? "" : "; failures: " + hostErrors));
+        return new Result(n, programmes, inputId, friendly, ids, hostErrors);
     }
 
     /** Convenience for a single host (ADB). Merges into the saved playlist list. */

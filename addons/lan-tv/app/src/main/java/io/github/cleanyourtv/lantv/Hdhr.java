@@ -13,6 +13,8 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketTimeoutException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -32,20 +34,32 @@ import java.util.zip.CRC32;
  */
 final class Hdhr {
     private static final String TAG = "LanTv.Hdhr";
-    /** Ports ErsatzTV / HDHomeRun commonly use for discover.json. */
-    private static final int[] HTTP_PORTS = {8409, 5004, 80};
+    /**
+     * Ports for HTTP discover.json. Real SiliconDust boxes answer on 80; ErsatzTV often uses
+     * 8409. Probe 80 first so a short LAN scan still reaches tuners before the deadline.
+     */
+    private static final int[] HTTP_PORTS = {80, 8409, 5004};
+    /** SiliconDust cloud XMLTV — same endpoint as dbondarchuk/hdhomerun-xmltv. */
+    static final String SILICONDUST_XMLTV = "https://api.hdhomerun.com/api/xmltv";
 
     static final class Device {
         final String host;
         final String name;
         final String model;
         final String lineupUrl;
+        /** From discover.json; used for SiliconDust cloud guide when no XMLTV URL is set. */
+        final String deviceAuth;
 
         Device(String host, String name, String model, String lineupUrl) {
+            this(host, name, model, lineupUrl, "");
+        }
+
+        Device(String host, String name, String model, String lineupUrl, String deviceAuth) {
             this.host = host;
             this.name = name;
             this.model = model;
             this.lineupUrl = lineupUrl;
+            this.deviceAuth = deviceAuth == null ? "" : deviceAuth;
         }
     }
 
@@ -64,16 +78,32 @@ final class Hdhr {
     private Hdhr() {
     }
 
-    /** UDP broadcast, then HTTP probe of the LAN /24 for ErsatzTV-style discover.json. */
+    /** UDP broadcast, then HTTP probe of the LAN /24 for discover.json. */
     static List<Device> discover(int timeoutMs) {
+        return discover(timeoutMs, null);
+    }
+
+    /**
+     * @param hintHost optional host/IP the user already typed — probed first (UDP unicast + HTTP)
+     *                 so a SiliconDust tuner is found even when the /24 HTTP sweep runs out of time
+     */
+    static List<Device> discover(int timeoutMs, String hintHost) {
         LinkedHashMap<String, Device> byHost = new LinkedHashMap<>();
+        String hint = clean(hintHost);
+        if (!hint.isEmpty()) {
+            try {
+                Device d = infoQuick(hint, 3000);
+                byHost.put(d.host, d);
+            } catch (IOException ignored) {
+            }
+        }
 
         LinkedHashSet<String> udpHosts = new LinkedHashSet<>();
         try (DatagramSocket s = new DatagramSocket()) {
             s.setBroadcast(true);
             s.setSoTimeout(300);
             byte[] req = request();
-            long deadline = System.currentTimeMillis() + Math.min(timeoutMs, 2500);
+            long deadline = System.currentTimeMillis() + Math.min(Math.max(timeoutMs / 2, 2000), 4000);
             long nextSend = 0L;
             byte[] buf = new byte[2048];
             while (System.currentTimeMillis() < deadline) {
@@ -81,6 +111,14 @@ final class Hdhr {
                     try {
                         s.send(new DatagramPacket(req, req.length, InetAddress.getByName("255.255.255.255"), 65001));
                     } catch (IOException ignored) {
+                    }
+                    // Unicast helps when broadcast is filtered but the tuner IP is known.
+                    if (!hint.isEmpty()) {
+                        try {
+                            String ip = hint.split(":")[0];
+                            s.send(new DatagramPacket(req, req.length, InetAddress.getByName(ip), 65001));
+                        } catch (IOException ignored) {
+                        }
                     }
                     nextSend = System.currentTimeMillis() + 800;
                 }
@@ -106,33 +144,48 @@ final class Hdhr {
         }
 
         // ErsatzTV (and some soft HDHR servers) do not answer UDP 65001; probe HTTP on the /24.
-        for (Device d : httpScan(timeoutMs)) {
+        int httpBudget = Math.max(timeoutMs - 500, 6000);
+        for (Device d : httpScan(httpBudget)) {
             byHost.putIfAbsent(d.host, d);
         }
         return new ArrayList<>(byHost.values());
     }
 
-    /** Parallel HTTP GET of http://x.x.x.n:port/discover.json on each LAN /24 address. */
+    /**
+     * Parallel HTTP GET of discover.json on each LAN /24 address. Port 80 first (real HDHomeRun),
+     * then alternate ports, so the sweep can finish before the deadline.
+     */
     static List<Device> httpScan(int timeoutMs) {
         List<String> prefixes = ipv4Prefixes();
         if (prefixes.isEmpty()) return Collections.emptyList();
 
         Map<String, Device> found = Collections.synchronizedMap(new LinkedHashMap<>());
-        ExecutorService pool = Executors.newFixedThreadPool(32);
-        long deadline = System.currentTimeMillis() + Math.max(timeoutMs, 4000);
-        for (String prefix : prefixes) {
-            for (int i = 1; i <= 254; i++) {
-                final String ip = prefix + i;
-                for (int port : HTTP_PORTS) {
+        ExecutorService pool = Executors.newFixedThreadPool(64);
+        long deadline = System.currentTimeMillis() + Math.max(timeoutMs, 6000);
+        // Wave port 80 first (SiliconDust), then 8409/5004 (ErsatzTV) so the sweep hits tuners.
+        for (int port : HTTP_PORTS) {
+            if (System.currentTimeMillis() > deadline) break;
+            for (String prefix : prefixes) {
+                for (int i = 1; i <= 254; i++) {
+                    final String ip = prefix + i;
+                    final int p = port;
                     pool.execute(() -> {
                         if (System.currentTimeMillis() > deadline) return;
-                        String hostPort = port == 80 ? ip : ip + ":" + port;
+                        String hostPort = p == 80 ? ip : ip + ":" + p;
                         try {
-                            Device d = infoQuick(hostPort, 400);
+                            Device d = infoQuick(hostPort, 500);
                             found.putIfAbsent(d.host, d);
                         } catch (IOException ignored) {
                         }
                     });
+                }
+            }
+            if (port == 80) {
+                try {
+                    Thread.sleep(Math.min(2500, Math.max(0, deadline - System.currentTimeMillis())));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
                 }
             }
         }
@@ -167,7 +220,8 @@ final class Hdhr {
                     host,
                     o.optString("FriendlyName", "HDHomeRun"),
                     o.optString("ModelNumber"),
-                    lineup);
+                    lineup,
+                    o.optString("DeviceAuth"));
         } catch (JSONException e) {
             throw new IOException("discover.json was not valid JSON", e);
         }
@@ -177,9 +231,14 @@ final class Hdhr {
         try {
             JSONArray arr = new JSONArray(Http.text(device.lineupUrl, 8L * 1024 * 1024));
             List<Channel> channels = parseLineup(arr);
+            if (channels.isEmpty()) {
+                throw new IOException("lineup.json has no usable channels on " + device.host
+                        + " (empty, DRM-only, or non-HTTP URLs)");
+            }
             // ErsatzTV's HDHR lineup points at continuous .ts; Tvirl/VLC users paste
             // /iptv/channels.m3u which already has HLS segmenter URLs. Prefer those so the TV
             // pulls short segments instead of pinning ffmpeg on a progressive pipe.
+            // Real SiliconDust tuners have no /iptv/channels.m3u — apply is a no-op.
             int swapped = applyIptvM3uUrls(device.host, channels);
             if (swapped > 0) {
                 Log.i(TAG, "Using IPTV M3U HLS for " + swapped + "/" + channels.size()
@@ -330,7 +389,11 @@ final class Hdhr {
         }
     }
 
-    /** Prefer an explicit XMLTV URL; otherwise try common ErsatzTV paths on the host. */
+    /**
+     * Prefer an explicit XMLTV URL; otherwise try common ErsatzTV paths on the host.
+     * Real SiliconDust tuners have no local guide — caller should use
+     * {@link #fetchSiliconDustXmltv(List)} with DeviceAuth from discover.json.
+     */
     static String resolveXmltv(String host, String configured) throws IOException {
         if (configured != null && !configured.trim().isEmpty()) {
             return configured.trim();
@@ -353,7 +416,45 @@ final class Hdhr {
             }
         }
         if (last != null) throw last;
-        throw new IOException("No XMLTV guide found; set an XMLTV URL");
+        throw new IOException("No local XMLTV; set an EPG URL or use a SiliconDust tuner");
+    }
+
+    /**
+     * Build the SiliconDust cloud XMLTV URL. Auth tokens are concatenated (official API).
+     * Do not persist or log the resulting URL — it embeds DeviceAuth.
+     */
+    static String siliconDustXmltvUrl(List<String> deviceAuths) throws IOException {
+        String joined = joinDeviceAuths(deviceAuths);
+        if (joined.isEmpty()) throw new IOException("No DeviceAuth for SiliconDust XMLTV");
+        return SILICONDUST_XMLTV + "?DeviceAuth="
+                + URLEncoder.encode(joined, StandardCharsets.UTF_8.name());
+    }
+
+    static String joinDeviceAuths(List<String> deviceAuths) {
+        if (deviceAuths == null || deviceAuths.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (String a : deviceAuths) {
+            if (a == null) continue;
+            String t = a.trim();
+            if (!t.isEmpty()) sb.append(t);
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Fetch the cloud guide for one or more SiliconDust tuners (concatenated DeviceAuth).
+     * Called on every schedule refresh when the user left the EPG URL empty.
+     */
+    static byte[] fetchSiliconDustXmltv(List<String> deviceAuths) throws IOException {
+        String url = siliconDustXmltvUrl(deviceAuths);
+        Log.i(TAG, "Fetching SiliconDust XMLTV for " + deviceAuths.size() + " DeviceAuth value(s)");
+        // Guides are large; allow a long read (same idea as hdhomerun-xmltv's 60s timeout).
+        byte[] raw = Http.bytes(url, 64L * 1024 * 1024, 10_000, 60_000);
+        String head = new String(raw, 0, Math.min(raw.length, 512), StandardCharsets.UTF_8);
+        if (!head.contains("<tv") && !head.contains("<TV") && !head.contains("<?xml")) {
+            throw new IOException("SiliconDust XMLTV response was not XML");
+        }
+        return raw;
     }
 
     static String clean(String h) {

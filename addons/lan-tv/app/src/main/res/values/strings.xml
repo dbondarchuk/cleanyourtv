@@ -19,7 +19,7 @@
     <string name="edit_status_idle">Edit the fields, then Save playlist. Remove also clears its channels.</string>
 
     <string name="host_hint">Host or IP (optional port)</string>
-    <string name="xmltv_hint">XMLTV / EPG URL (optional; auto if empty)</string>
+    <string name="xmltv_hint">XMLTV / EPG URL (optional; ErsatzTV auto, HDHomeRun uses SiliconDust)</string>
     <string name="scan">Scan LAN</string>
     <string name="save_source">Save playlist</string>
     <string name="remove_source">Remove</string>
@@ -28,14 +28,19 @@
     <string name="status_scanning">Scanning…</string>
     <string name="status_syncing">Syncing channels and guide…</string>
     <string name="status_done">Synced %1$d channels (%2$d guide rows). Use Channel settings if Live TV is missing them.</string>
+    <string name="status_host_failures">Some playlists failed:</string>
+    <string name="status_checking_host">Checking host…</string>
     <string name="status_saved">Saved %1$s.</string>
+    <string name="status_saved_channels">Saved %1$s (%2$d channels). Sync now from the main screen.</string>
     <string name="status_saved_host_moved">Saved %1$s. Removed %2$d old channel(s) — Sync now to pull the new host.</string>
     <string name="status_removed">Removed %1$s.</string>
     <string name="status_removed_channels">Removed %1$s and %2$d Live TV channel(s).</string>
     <string name="status_removing_channels">Removing Live TV channels…</string>
     <string name="status_error">%1$s</string>
     <string name="found">Found: %1$s</string>
+    <string name="found_heading">Found on LAN</string>
     <string name="found_many">Found %1$d. Pick a host above (or keep the first), set EPG if needed, then Save.</string>
+    <string name="found_selected">Found %1$d. OK a row to select it, set EPG if needed, then Save.</string>
     <string name="nothing_found">No HDHomeRun-compatible device answered. Type the host.</string>
     <string name="need_host">Enter a host before saving.</string>
     <string name="need_sources">Add at least one playlist, then Sync now.</string>

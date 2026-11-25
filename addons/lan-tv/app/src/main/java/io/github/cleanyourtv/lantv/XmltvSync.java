@@ -59,6 +59,13 @@ final class XmltvSync {
 
     static int apply(Context ctx, String xmltvUrl, Map<String, Long> channelIds,
                      List<Hdhr.Channel> lineup) throws IOException {
+        return applyXml(ctx, Http.bytes(xmltvUrl, 32L * 1024 * 1024), channelIds, lineup);
+    }
+
+    /** Apply an already-fetched XMLTV document (e.g. SiliconDust cloud guide). */
+    static int applyXml(Context ctx, byte[] raw, Map<String, Long> channelIds,
+                        List<Hdhr.Channel> lineup) throws IOException {
+        if (raw == null || raw.length == 0) throw new IOException("Empty XMLTV");
         Map<String, String> xmlIdToKey = new HashMap<>();
         for (Hdhr.Channel ch : lineup) {
             String key = ChannelSync.key(ch);
@@ -70,7 +77,6 @@ final class XmltvSync {
             }
         }
 
-        byte[] raw = Http.bytes(xmltvUrl, 32L * 1024 * 1024);
         List<Programme> programmes = parse(new ByteArrayInputStream(raw), xmlIdToKey);
 
         for (Long id : channelIds.values()) {

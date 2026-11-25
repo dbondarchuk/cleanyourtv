@@ -10,7 +10,7 @@ more playlists, then **Sync now**. Watching stays in Sony Live TV / Live Channel
 
 | Permission | Why |
 |---|---|
-| `INTERNET` | Talk to the HDHomeRun-compatible server for discover, lineup, streams and XMLTV |
+| `INTERNET` | LAN discover/lineup/streams; optional SiliconDust `api.hdhomerun.com` XMLTV when EPG URL is empty |
 | `WAKE_LOCK` | Keep the stream awake while Live TV is tuned (ExoPlayer network wake mode) |
 | `RECEIVE_BOOT_COMPLETED` | Refresh channels after a reboot, and keep the 12-hour EPG job registered |
 | `com.android.providers.tv.permission.READ_EPG_DATA` | Read programme rows already in the system TV provider |
@@ -35,11 +35,21 @@ Auto-discovery tries SiliconDust HDHomeRun UDP on port 65001, then an HTTP scan 
 on ports `8409`, `5004` and `80` for `/discover.json` (ErsatzTV often skips UDP). The app allows
 cleartext `http://` on the LAN so local ErsatzTV/HDHomeRun servers work without HTTPS.
 
-Discover still uses HDHomeRun `discover.json` / `lineup.json` for names and guide numbers. When the
-host also serves `/iptv/channels.m3u` (ErsatzTV), sync replaces each matching channel’s stream URL
-with the M3U entry — the same HLS segmenter links Tvirl and VLC use when you paste that playlist.
-Real HDHomeRun boxes without that M3U keep the lineup `.ts` URLs. ExoPlayer then picks HLS vs
-progressive MPEG-TS from the URI path.
+Discover uses SiliconDust UDP on 65001, then an HTTP sweep of the LAN `/24` (port **80** first for
+real HDHomeRun, then `8409` / `5004` for ErsatzTV). Typing an IP before **Scan LAN** probes that
+host first. Save checks `discover.json` + `lineup.json` so a bad host fails immediately.
+
+When the host also serves `/iptv/channels.m3u` (ErsatzTV), sync replaces matching stream URLs with
+those HLS segmenter links (same as Tvirl/VLC). Real HDHomeRun boxes keep lineup URLs such as
+`http://tuner:5004/auto/v5.1`. DRM-flagged ATSC 3.0 rows are skipped. ExoPlayer picks HLS vs
+progressive MPEG-TS from the URI. If one playlist fails while another succeeds, Sync still finishes
+and lists the failure on screen.
+
+**EPG:** leave the XMLTV field empty for a SiliconDust tuner — each Sync (and the 12-hour job)
+re-reads `DeviceAuth` from `discover.json`, concatenates auth for every such playlist, and fetches
+`https://api.hdhomerun.com/api/xmltv` (same approach as
+[hdhomerun-xmltv](https://github.com/dbondarchuk/hdhomerun-xmltv)). DeviceAuth is never stored.
+ErsatzTV still uses its local `/iptv/xmltv.xml` when present.
 
 On some Sonys, third-party TV inputs drop out of the system list after a reboot until the package
 is touched again. Boot / Setup / the input service call `TvInputManager.updateTvInputInfo` (as
